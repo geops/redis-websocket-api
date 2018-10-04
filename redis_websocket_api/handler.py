@@ -42,7 +42,7 @@ class WebsocketHandlerBase:
         """Return (passed, result)-tuple.
 
         Runs all filters in self.filters on the deserialized message and
-        returns a boolean indicating wheather all filters passed and a JSON
+        returns a boolean indicating whether all filters passed and a JSON
         string with the (modified) result.
         """
         if message is None:
@@ -101,7 +101,7 @@ class WebsocketHandlerBase:
     async def listen(self):
         """Read and handle messages from internal message queue.
 
-        This corotine blocks for up to self.read_timeout seconds.
+        This coroutine blocks for up to self.read_timeout seconds.
         """
         await self._send('websocket', {'status': 'open'})
         while not self.consumer_task.done():
@@ -113,13 +113,13 @@ class WebsocketHandlerBase:
 
     async def close(self):
         """Close all connections and cancel all tasks."""
-        asyncio.wait_for(  # attempt to say goodby to the client
+        asyncio.wait_for(  # attempt to say goodbye to the client
             self.websocket.close(), self.read_timeout)
         self.consumer_task.cancel()
 
 
 class WebsocketHandler(WebsocketHandlerBase, CommandsMixin):
-    """Provides a Redis poroxy to predefined channels"""
+    """Provides a Redis proxy to predefined channels"""
 
     read_timeout = 30
     allowed_commands = 'SUB', 'DEL', 'PING', 'GET'

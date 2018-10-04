@@ -47,7 +47,7 @@ The default functionality provides the following interface to the web client
 By adding the `GeoCommandsMixin` the web client can use
 - `BBOX left bottom right top` to only receive GeoJSON features within this box
   plus all messages which are not valid GeoJSON
-- `PROJECTION epsg:number` causes all furure GeoJSON features to be transformed
+- `PROJECTION epsg:number` causes all future GeoJSON features to be transformed
   to the given projection
 
 Geo commands are currently limited to `LineString`, `Polygon`, and `Point`
