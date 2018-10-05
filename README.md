@@ -1,4 +1,4 @@
-Provides an extensible Redis-over-WebSocket API on top of websocket and aioredis
+An extensible Redis-over-WebSocket API on top of websockets and aioredis.
 
 
 Installation
