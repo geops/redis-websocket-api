@@ -1,15 +1,28 @@
-This package provides an API on top of the websocket and aioredis libraries to
-set up an extensible WebSocket to Redis proxy.
+Provides an extensible Redis-over-WebSocket API on top of websocket and aioredis
+
 
 Installation
 ------------
 
+For basic functionality:
+
     pip install redis_websocket_api
+
+With geo extension (filtering messages by extent, projection transformation):
+
+    pip install redis_websocket_api[geo]
+
+
+Clint-Server Interface
+----------------------
+
+By default the `WebsocketServer` provides 
+
 
 Server-Side Usage
 -----------------
 
-You can use the `WebSocketServer` like this:
+Start the `WebsocketServer` like this:
 
     from aioredis import create_redis_pool
     from redis_websocket_api import WebsocketServer
@@ -35,6 +48,8 @@ added.
 Clint-Side Usage
 ----------------
 
+#### `WebsocketHandler`
+
 The default functionality provides the following interface to the web client
 (expecting the requests over a websocket connection):
 - `GET key` translates to `hvals key`
@@ -44,11 +59,21 @@ The default functionality provides the following interface to the web client
 - `DEL key` unsubscribes the client from the channel
 - `PING` causes a `PONG` response (to avoid timeouts)
 
+#### Subclass of `WebsocketHandler` with `GeoCommandsMixin` added
+
 By adding the `GeoCommandsMixin` the web client can use
 - `BBOX left bottom right top` to only receive GeoJSON features within this box
   plus all messages which are not valid GeoJSON
 - `PROJECTION epsg:number` causes all future GeoJSON features to be transformed
   to the given projection
 
+See `examples/demo.py` for how to use an extended `WebsocketHandler` subclass.
+
 Geo commands are currently limited to `LineString`, `Polygon`, and `Point`
 geometries.
+
+#### Build your own protocol
+
+Using the commands listed above for communicating from client to server is
+completly optional and determinded by the Mixin classes added to the
+`WebsocketHandlerBase`.
