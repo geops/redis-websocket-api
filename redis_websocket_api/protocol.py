@@ -33,7 +33,7 @@ class CommandsMixin:
     async def _handle_get_command(self, channel_name, ref=None, client_ref=None):
         """Get cached elements by key, optionally filter by reference.
 
-        This command is guranteed to send at least one message with the key
+        This command is guaranteed to send at least one message with the key
         and reference as source. The content is ``null`` if no valid content
         can be returned.
 
