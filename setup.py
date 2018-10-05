@@ -12,12 +12,13 @@ with open(os.path.join(here, 'requirements.txt')) as f:
 
 setup(
     name='redis-websocket-api',
-    version='0.0',
+    version='0.0.1',
     description='Websocket API using Redis as message broker backend',
     long_description=README,
+    url='https://github.com/geops/redis_websocket_api',
     author='Milan Oberkirch | geOps',
     author_email='milan.oberkirch@geops.de',
-    keywords='tralis websocket aioredis api',
+    keywords='tralis websocket aioredis redis',
     packages=find_packages(),
     include_package_data=True,
     zip_safe=False,
@@ -25,9 +26,20 @@ setup(
         'testing': ['pytest'],
         'geo': ['pyproj']
     },
+    python_requires='>=3.5',
     install_requires=requires,
     entry_points='''
         [console_scripts]
         redis_websocket_api_example=redis_websocket_api.example:main
     ''',
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "License :: OSI Approved :: MIT License",
+        "Operating System :: POSIX",
+        "Environment :: Web Environment",
+        "Framework :: AsyncIO",
+        "Intended Audience :: Developers",
+        "Topic :: Internet :: WWW/HTTP :: HTTP Servers",
+        "Topic :: Scientific/Engineering :: GIS",
+    ],
 )
