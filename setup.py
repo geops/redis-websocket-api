@@ -28,10 +28,6 @@ setup(
     },
     python_requires='>=3.5',
     install_requires=requires,
-    entry_points='''
-        [console_scripts]
-        redis_websocket_api_example=redis_websocket_api.example:main
-    ''',
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
