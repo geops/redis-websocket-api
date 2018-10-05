@@ -13,12 +13,6 @@ With geo extension (filtering messages by extent, projection transformation):
     pip install redis_websocket_api[geo]
 
 
-Clint-Server Interface
-----------------------
-
-By default the `WebsocketServer` provides 
-
-
 Server-Side Usage
 -----------------
 
