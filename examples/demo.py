@@ -1,4 +1,4 @@
-"""Async Websocket API providing access to redis channels and cache."""
+"""Example for extending the WebsocketServer with the GeoCommandsMixin"""
 
 import logging
 import asyncio
@@ -38,7 +38,7 @@ class ExampleWebsocketServer(WebsocketServer):
     handler_class = ExampleWebsocketHandler
 
     async def websocket_handler(self, websocket, path):
-        """Create and register WebsocketHandler with error handling"""
+        """Add some error handling to the default implementation"""
         try:
             await super().websocket_handler(websocket, path)
         except (exceptions.ConnectionClosed, asyncio.TimeoutError):
@@ -52,7 +52,11 @@ class ExampleWebsocketServer(WebsocketServer):
 
 
 async def example_producer():
-    """Dummy producer putting data into redis for demonstrating the API"""
+    """Dummy producer putting data into redis for demonstrating the API
+    
+    This will put one message into example_channel_2 every 0.1 seconds with
+    coordinates shifted by one each time.
+    """
 
     redis = await create_redis_pool(REDIS_ADDRESS)
 

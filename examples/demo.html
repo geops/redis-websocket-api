@@ -1,15 +1,26 @@
 <!DOCTYPE html>
+
 <html>
     <head>
+        <meta content="text/html;charset=utf-8" http-equiv="Content-Type">
         <title>WebSocket demo</title>
     </head>
     <body>
+        <h1>Frontend for demo.py</h1>
+        <p>This demonstates some features by requesting</p>
+        <ul>
+            <li>a projection transformation to EPSG 3857 (webmerkator)</li>
+            <li>a filter to messages within a bounding box</li>
+            <li>initial data and a subscription to the example channels</li>
+        </ul>
+        <noscript>You'll need JavaScript for this to work</noscript>
+        <h2>Received messages</h2>
+        <ol id='messages'></ol>
+        <p>... waiting for messages</p>
         <script>
-            var ws = new WebSocket("ws://localhost:8000/ws"),
-                messages = document.createElement('ol');
+            const ws = new WebSocket("ws://localhost:8000/ws");
             ws.onmessage = function (event) {
-                console.log("Ping!")
-                var messages = document.getElementsByTagName('ol')[0],
+                var messages = document.getElementById('messages'),
                     message = document.createElement('li'),
                     code = document.createElement('code')
                     content = document.createTextNode(event.data);
@@ -25,7 +36,6 @@
                 ws.send('SUB example_channel_1');
                 ws.send('SUB example_channel_2');
             }
-            document.body.appendChild(messages);
         </script>
     </body>
 </html>
