@@ -39,8 +39,8 @@ Have a look at `examples/demo.py` for an example with the `GeoCommandsMixin`
 added.
 
 
-Clint-Side Usage
-----------------
+Client-Side Usage
+-----------------
 
 #### `WebsocketHandler`
 
