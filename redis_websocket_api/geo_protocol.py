@@ -64,7 +64,7 @@ class GeoCommandsMixin:
                     self.filters['projection'] = self._projection_filter
                     logger.debug("Set 'PROJECTION' to '%s' for %s.",
                                  projection, self.websocket.remote_address)
-                except RuntimeError as e:
+                except RuntimeError:
                     logger.info("Could not set 'PROJECTION' to '%s' for %s.",
                                 projection, self.websocket.remote_address)
 
