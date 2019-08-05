@@ -53,7 +53,7 @@ class ExampleWebsocketServer(WebsocketServer):
 
 async def example_producer():
     """Dummy producer putting data into redis for demonstrating the API
-    
+
     This will put one message into example_channel_2 every 0.1 seconds with
     coordinates shifted by one each time.
     """

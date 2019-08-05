@@ -34,7 +34,7 @@ class WebsocketHandlerBase:
             while True:
                 await self.queue.put(Message(
                     source='websocket', content=await self.websocket.recv()))
-        except ConnectionClosed as e:
+        except ConnectionClosed:
             logger.debug("Connection was closed by client %s",
                          self.websocket.remote_address)
 
@@ -107,7 +107,7 @@ class WebsocketHandlerBase:
         while not self.consumer_task.done():
             try:
                 await self._queue_reader()
-            except asyncio.TimeoutError as e:
+            except asyncio.TimeoutError:
                 if not self.websocket.open:
                     raise
 
