@@ -21,8 +21,7 @@ class WebsocketServer:
 
     handler_class = WebsocketHandler
 
-    def __init__(self, redis, subscriber,
-                 read_timeout=None, keep_alive_timeout=None):
+    def __init__(self, redis, subscriber, read_timeout=None, keep_alive_timeout=None):
         """Set default values for new WebsocketHandlers.
 
         :param redis: aioredis.StrictRedis instance
@@ -45,9 +44,11 @@ class WebsocketServer:
 
         logger.info("Client %s connected", websocket.remote_address)
         handler = await self.handler_class.create(
-            self.redis, websocket, set(map(
-                bytes.decode, self.receiver.channels.keys())),
-            read_timeout=self.read_timeout)
+            self.redis,
+            websocket,
+            set(map(bytes.decode, self.receiver.channels.keys())),
+            read_timeout=self.read_timeout,
+        )
         self.handlers[websocket.remote_address] = handler
         try:
             await asyncio.wait_for(handler.listen(), self.keep_alive_timeout)
@@ -56,27 +57,38 @@ class WebsocketServer:
             await handler.close()
             logger.info("Client %s removed", websocket.remote_address)
 
-    async def redis_subscribe(self, channel_names):
-        """Subscribe to all channels in channel_names once."""
+    async def redis_subscribe(self, channel_names=None, channel_patterns=None):
+        """Subscribe to channels by channel_names and/or channel_patterns."""
 
-        await self.subscriber.subscribe(*(self.receiver.channel(channel_name)
-                                        for channel_name in channel_names))
+        if not (channel_names or channel_patterns):
+            raise ValueError("Got nothing to subscribe to")
+
+        if channel_names:
+            await self.subscriber.subscribe(
+                *(self.receiver.channel(name) for name in channel_names)
+            )
+
+        if channel_patterns:
+            await self.subscriber.psubscribe(
+                *(self.receiver.pattern(pattern) for pattern in channel_patterns)
+            )
 
     async def redis_reader(self):
         """Pass messages from subscribed channels to handlers."""
 
-        async for channel, msg in self.receiver.iter(encoding='utf-8'):
+        async for channel, msg in self.receiver.iter(encoding="utf-8"):
             for handler in self.handlers.values():
                 if channel.name.decode() in handler.subscriptions:
-                    handler.queue.put_nowait(Message(
-                        source=channel.name.decode(), content=msg))
+                    handler.queue.put_nowait(
+                        Message(source=channel.name.decode(), content=msg)
+                    )
 
-    def listen(self, host, port, channel_names, loop=None):
+    def listen(self, host, port, channel_names=None, channel_patterns=None, loop=None):
         """Listen for websocket connections and manage redis subscriptions."""
 
         loop = loop or asyncio.get_event_loop()
         start_server = serve(self.websocket_handler, host, port)
-        loop.run_until_complete(self.redis_subscribe(channel_names))
+        loop.run_until_complete(self.redis_subscribe(channel_names, channel_patterns))
         loop.run_until_complete(start_server)
         logger.info("Listening on %s:%s...", host, port)
         loop.run_until_complete(self.redis_reader())
