@@ -58,7 +58,8 @@ class WebsocketServer:
             logger.info("Client %s removed", websocket.remote_address)
 
     async def redis_subscribe(self, channel_names=None, channel_patterns=None):
-        """Subscribe to all channels in channel_names once."""
+        """Subscribe to channels by channel_names and/or channel_patterns."""
+
         if not (channel_names or channel_patterns):
             raise ValueError("Got nothing to subscribe to")
 
