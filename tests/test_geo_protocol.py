@@ -1,6 +1,7 @@
 from json import loads
 
 import pytest
+from pytest import approx
 
 from redis_websocket_api import WebsocketHandler
 from redis_websocket_api.geo_protocol import GeoCommandsMixin, BoundingBox
@@ -109,8 +110,8 @@ def test_projection_filter(loop, geo_handler):
         {
             "geometry": {
                 "coordinates": [
-                    (11131.949079326665, 389860.7582541955),
-                    (233770.93066587413, 378708.59661392024),
+                    approx((11131.949079326665, 389860.7582541955)),
+                    approx((233770.93066587413, 378708.59661392024)),
                 ],
                 "type": "LineString",
             },
@@ -124,7 +125,7 @@ def test_projection_filter(loop, geo_handler):
         True,
         {
             "geometry": {
-                "coordinates": (11131.949079326665, 389860.7582541955),
+                "coordinates": approx((11131.949079326665, 389860.7582541955)),
                 "type": "Point",
             },
             "properties": {},
@@ -139,8 +140,8 @@ def test_projection_filter(loop, geo_handler):
             "geometry": {
                 "coordinates": [
                     [
-                        (11131.949079326665, 389860.7582541955),
-                        (233770.93066587413, 378708.59661392024),
+                        approx((11131.949079326665, 389860.7582541955)),
+                        approx((233770.93066587413, 378708.59661392024)),
                     ]
                 ],
                 "type": "Polygon",
@@ -201,8 +202,8 @@ def test_feature_collection_projection_filter(loop, geo_handler):
                 {
                     "geometry": {
                         "coordinates": [
-                            (11131.949079326665, 389860.7582541955),
-                            (233770.93066587413, 378708.59661392024),
+                            approx((11131.949079326665, 389860.7582541955)),
+                            approx((233770.93066587413, 378708.59661392024)),
                         ],
                         "type": "LineString",
                     },
@@ -211,7 +212,7 @@ def test_feature_collection_projection_filter(loop, geo_handler):
                 },
                 {
                     "geometry": {
-                        "coordinates": (11131.949079326665, 389860.7582541955),
+                        "coordinates": approx((11131.949079326665, 389860.7582541955)),
                         "type": "Point",
                     },
                     "properties": {},
@@ -221,8 +222,8 @@ def test_feature_collection_projection_filter(loop, geo_handler):
                     "geometry": {
                         "coordinates": [
                             [
-                                (11131.949079326665, 389860.7582541955),
-                                (233770.93066587413, 378708.59661392024),
+                                approx((11131.949079326665, 389860.7582541955)),
+                                approx((233770.93066587413, 378708.59661392024)),
                             ]
                         ],
                         "type": "Polygon",
