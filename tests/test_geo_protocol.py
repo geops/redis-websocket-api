@@ -1,7 +1,8 @@
+from functools import partial
 from json import loads
 
 import pytest
-from pytest import approx
+from pytest import approx as approx_
 
 from redis_websocket_api import WebsocketHandler
 from redis_websocket_api.geo_protocol import GeoCommandsMixin, BoundingBox
@@ -27,6 +28,10 @@ FEATURE_COLLECTION = """\
     ]
 }}
 """
+
+# relative doesnt make sense with cyclic coordinates which might get close to 0
+# on one axis. Then the relative tolerance rises to infinity
+approx = partial(approx_, abs=1e-9)
 
 
 def get_geojson(type_, coordinates):
