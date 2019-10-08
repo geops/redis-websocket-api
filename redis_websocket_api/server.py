@@ -47,6 +47,7 @@ class WebsocketServer:
             self.redis,
             websocket,
             set(map(bytes.decode, self.receiver.channels.keys())),
+            set(map(bytes.decode, self.receiver.patterns.keys())),
             read_timeout=self.read_timeout,
         )
         self.handlers[websocket.remote_address] = handler
