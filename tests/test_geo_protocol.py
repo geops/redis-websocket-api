@@ -48,7 +48,7 @@ def geo_handler(websocket, redis):
     class GeoHandler(WebsocketHandler, GeoCommandsMixin):
         allowed_commands = "BBOX", "PROJECTION", "GET"
 
-    return GeoHandler(redis=redis, websocket=websocket, channel_names=[])
+    return GeoHandler(redis=redis, websocket=websocket, channel_names=[], channel_patterns=[])
 
 
 def test_bbox_command(loop, geo_handler):

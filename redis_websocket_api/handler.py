@@ -18,10 +18,11 @@ class WebsocketHandlerBase:
     read_timeout = NotImplemented
     allowed_commands = NotImplemented
 
-    def __init__(self, redis, websocket, channel_names, read_timeout=None):
+    def __init__(self, redis, websocket, channel_names, channel_patterns, read_timeout=None):
         self.websocket = websocket
         self.redis = redis
         self.channel_names = channel_names
+        self.channel_patterns = channel_patterns
         self.read_timeout = read_timeout or self.read_timeout
 
         self.queue = asyncio.Queue()
@@ -91,10 +92,17 @@ class WebsocketHandlerBase:
             raise RemoteMessageHandlerError(
                 "Handling message '{}' failed: {}".format(message, e)) from e
 
+    def _channel_in_patterns(self, channel_name):
+        return any(
+            # [:-1] because the patterns have a `*` at the end
+            pattern[:-1] in channel_name
+            for pattern in self.channel_patterns
+        )
+
     @classmethod
-    async def create(cls, redis, websocket, channel_names, read_timeout=None):
+    async def create(cls, redis, websocket, channel_names, channel_patterns, read_timeout=None):
         """Create a handler instance setting up tasks and queues."""
-        self = cls(redis, websocket, channel_names, read_timeout=read_timeout)
+        self = cls(redis, websocket, channel_names, channel_patterns, read_timeout=read_timeout)
         self.consumer_task = asyncio.ensure_future(self._websocket_reader())
         return self
 
