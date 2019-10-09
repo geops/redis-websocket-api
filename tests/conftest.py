@@ -46,7 +46,7 @@ def redis():
 
 @pytest.fixture
 def handler(websocket, redis):
-    return WebsocketHandler(redis=redis, websocket=websocket, channel_names=[])
+    return WebsocketHandler(redis=redis, websocket=websocket, channel_names=[], channel_patterns=[])
 
 
 @pytest.fixture
