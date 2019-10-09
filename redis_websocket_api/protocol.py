@@ -40,7 +40,7 @@ class CommandsMixin:
         If a client_ref is given, it is added to the envelope of the message
         sent.
         """
-        if channel_name not in self.channel_names and self._channel_in_patterns(channel_name):
+        if not (channel_name in self.channel_names or self._channel_in_patterns(channel_name)):
             return
 
         if ref is not None:

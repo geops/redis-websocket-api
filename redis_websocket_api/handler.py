@@ -94,10 +94,9 @@ class WebsocketHandlerBase:
 
     def _channel_in_patterns(self, channel_name):
         return any(
-            [
-                True if pattern in channel_name else False
-                for pattern in self.channel_patterns
-            ]
+            # [:-1] because the patterns have a `*` at the end
+            pattern[:-1] in channel_name
+            for pattern in self.channel_patterns
         )
 
     @classmethod
