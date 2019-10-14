@@ -78,11 +78,14 @@ class WebsocketServer:
         """Pass messages from subscribed channels to handlers."""
 
         async for channel, msg in self.receiver.iter(encoding="utf-8"):
+            if channel.is_pattern:
+                channel_name, msg = msg[0].decode(), msg[1]
+            else:
+                channel_name = channel.name.decode()
+
             for handler in self.handlers.values():
-                if channel.name.decode() in handler.subscriptions:
-                    handler.queue.put_nowait(
-                        Message(source=channel.name.decode(), content=msg)
-                    )
+                if channel_name in handler.subscriptions:
+                    handler.queue.put_nowait(Message(source=channel_name, content=msg))
 
     def listen(self, host, port, channel_names=None, channel_patterns=None, loop=None):
         """Listen for websocket connections and manage redis subscriptions."""

@@ -14,7 +14,7 @@ with open(os.path.join(here, "requirements.txt")) as f:
 
 setup(
     name="redis-websocket-api",
-    version="0.0.5",
+    version="0.1.0",
     description="Redis-over-WebSocket API on top of websockets and aioredis",
     long_description=README,
     long_description_content_type="text/markdown",
