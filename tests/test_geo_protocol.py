@@ -48,7 +48,9 @@ def geo_handler(websocket, redis):
     class GeoHandler(WebsocketHandler, GeoCommandsMixin):
         allowed_commands = "BBOX", "PROJECTION", "GET"
 
-    return GeoHandler(redis=redis, websocket=websocket, channel_names=[], channel_patterns=[])
+    return GeoHandler(
+        redis=redis, websocket=websocket, channel_names=[], channel_patterns=[]
+    )
 
 
 def test_bbox_command(loop, geo_handler):
@@ -81,6 +83,12 @@ def test_bbox_filter(loop, geo_handler):
     assert geo_handler._apply_filters(input_msg) == (False, loads(input_msg))
 
     input_msg = get_geojson("LineString", "[0.1, 3.5], [2.1, 3.4]")
+    assert geo_handler._apply_filters(input_msg) == (True, loads(input_msg))
+
+    input_msg = get_geojson("MultiLineString", "[[0.1, 3.5], [5.1, 3.4]]")
+    assert geo_handler._apply_filters(input_msg) == (False, loads(input_msg))
+
+    input_msg = get_geojson("MultiLineString", "[[0.1, 3.5], [2.1, 3.4]]")
     assert geo_handler._apply_filters(input_msg) == (True, loads(input_msg))
 
     input_msg = get_geojson("Unknown", "[0.1, 3.5], [2.1, 3.4]")
@@ -125,6 +133,30 @@ def test_projection_filter(loop, geo_handler):
         },
     )
 
+    input_msg = get_geojson(
+        "MultiLineString", "[[0.1, 3.5], [2.1, 3.4]], [[2.1, 3.4], [0.1, 3.5]]"
+    )
+    assert geo_handler._apply_filters(input_msg) == (
+        True,
+        {
+            "geometry": {
+                "coordinates": [
+                    [
+                        approx((11131.949079326665, 389860.7582541955)),
+                        approx((233770.93066587413, 378708.59661392024)),
+                    ],
+                    [
+                        approx((233770.93066587413, 378708.59661392024)),
+                        approx((11131.949079326665, 389860.7582541955)),
+                    ],
+                ],
+                "type": "MultiLineString",
+            },
+            "properties": {},
+            "type": "Feature",
+        },
+    )
+
     input_msg = get_geojson("Point", "0.1, 3.5")
     assert geo_handler._apply_filters(input_msg) == (
         True,
@@ -132,6 +164,22 @@ def test_projection_filter(loop, geo_handler):
             "geometry": {
                 "coordinates": approx((11131.949079326665, 389860.7582541955)),
                 "type": "Point",
+            },
+            "properties": {},
+            "type": "Feature",
+        },
+    )
+
+    input_msg = get_geojson("MultiPoint", "[0.1, 3.5], [2.1, 3.4]")
+    assert geo_handler._apply_filters(input_msg) == (
+        True,
+        {
+            "geometry": {
+                "coordinates": [
+                    approx((11131.949079326665, 389860.7582541955)),
+                    approx((233770.93066587413, 378708.59661392024)),
+                ],
+                "type": "MultiPoint",
             },
             "properties": {},
             "type": "Feature",
@@ -150,6 +198,39 @@ def test_projection_filter(loop, geo_handler):
                     ]
                 ],
                 "type": "Polygon",
+            },
+            "properties": {},
+            "type": "Feature",
+        },
+    )
+
+    input_msg = get_geojson(
+        "MultiPolygon",
+        "[[[0.1, 3.5], [2.1, 3.4]], [[2.1, 3.4], [2.1, 3.4]]], [[[0.1, 3.5], [2.1, 3.4]]]",
+    )
+    assert geo_handler._apply_filters(input_msg) == (
+        True,
+        {
+            "geometry": {
+                "coordinates": [
+                    [
+                        [
+                            approx((11131.949079326665, 389860.7582541955)),
+                            approx((233770.93066587413, 378708.59661392024)),
+                        ],
+                        [
+                            approx((233770.93066587413, 378708.59661392024)),
+                            approx((233770.93066587413, 378708.59661392024)),
+                        ],
+                    ],
+                    [
+                        [
+                            approx((11131.949079326665, 389860.7582541955)),
+                            approx((233770.93066587413, 378708.59661392024)),
+                        ]
+                    ],
+                ],
+                "type": "MultiPolygon",
             },
             "properties": {},
             "type": "Feature",
