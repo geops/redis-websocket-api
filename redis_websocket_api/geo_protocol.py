@@ -38,6 +38,37 @@ class GeoCommandsMixin:
         x, y = point
         return x > bbox.left and x < bbox.right and y > bbox.bottom and y < bbox.top
 
+    def _feature_coords_in_bbox(self, bbox, feature_type, coords):
+        if feature_type == "Polygon":
+            for ring in coords:
+                if any((self._point_in_bbox(point, bbox) for point in ring)):
+                    return True
+            return False
+        elif feature_type == "LineString":
+            return any((self._point_in_bbox(point, bbox) for point in coords))
+        elif feature_type == "Point":
+            return self._point_in_bbox(coords, bbox)
+
+        raise NotImplementedError(
+            "Feature type {} is not supported yet".format(feature_type)
+        )
+
+    def _transform_coords(self, feature_type, coords):
+        transform_func = partial(
+            transform_projection, self.projection_in, self.projection_out
+        )
+
+        if feature_type == "LineString":
+            return [transform_func(*point) for point in coords]
+        elif feature_type == "Polygon":
+            return [[transform_func(*point) for point in ring] for ring in coords]
+        elif feature_type == "Point":
+            return transform_func(*coords)
+
+        raise NotImplementedError(
+            "Feature type {} is not supported yet".format(feature_type)
+        )
+
     async def _handle_bbox_command(self, *args):
         """Set BoundingBox and activate box_filter."""
         if len(args) == 4:
@@ -94,29 +125,27 @@ class GeoCommandsMixin:
             )
 
         feature_type = self._feature_type(data)
-        if feature_type == "Polygon":
-            for ring in data["geometry"]["coordinates"]:
-                if any((self._point_in_bbox(point, bbox) for point in ring)):
-                    return True
-            return False
-        elif feature_type == "LineString":
-            return any(
-                (
-                    self._point_in_bbox(point, bbox)
-                    for point in data["geometry"]["coordinates"]
+        if feature_type is not None and bbox:
+            try:
+                if feature_type.startswith("Multi"):
+                    return any(
+                        (
+                            self._feature_coords_in_bbox(bbox, feature_type[5:], item)
+                            for item in data["geometry"]["coordinates"]
+                        )
+                    )
+                else:
+                    return self._feature_coords_in_bbox(
+                        bbox, feature_type, data["geometry"]["coordinates"]
+                    )
+            except NotImplementedError:
+                logger.warning(
+                    "Not applying BBOX filter to Feature type '%s' in %s",
+                    feature_type,
+                    data,
                 )
-            )
-        elif feature_type == "Point":
-            return self._point_in_bbox(data["geometry"]["coordinates"], bbox)
-        elif feature_type is None:
-            return True
-        else:
-            logger.warning(
-                "Not applying BBOX filter to Feature type '%s' in %s",
-                feature_type,
-                data,
-            )
-            return True
+
+        return True  # Only filter objects we could handle above
 
     def _projection_filter(self, data):
         """Transform coordinates in Feature or FeatureCollection to self.projection_out."""
@@ -125,24 +154,20 @@ class GeoCommandsMixin:
 
         if self.projection_out:
             feature_type = self._feature_type(data)
-            transform = partial(
-                transform_projection, self.projection_in, self.projection_out
-            )
-            if feature_type == "LineString":
-                data["geometry"]["coordinates"] = [
-                    transform(*point) for point in data["geometry"]["coordinates"]
-                ]
-            elif feature_type == "Polygon":
-                data["geometry"]["coordinates"] = [
-                    [transform(*point) for point in ring]
-                    for ring in data["geometry"]["coordinates"]
-                ]
-            elif feature_type == "Point":
-                data["geometry"]["coordinates"] = transform(
-                    *data["geometry"]["coordinates"]
-                )
-            elif feature_type is not None:
-                logger.warning(
-                    "Not projecting feature of type '%s': %s", feature_type, data
-                )
-        return True
+            if feature_type is not None:
+                try:
+                    if feature_type.startswith("Multi"):
+                        data["geometry"]["coordinates"] = [
+                            self._transform_coords(feature_type[5:], item)
+                            for item in data["geometry"]["coordinates"]
+                        ]
+                    else:
+                        data["geometry"]["coordinates"] = self._transform_coords(
+                            feature_type, data["geometry"]["coordinates"]
+                        )
+                except NotImplementedError:
+                    logger.warning(
+                        "Not projecting feature of type '%s': %s", feature_type, data
+                    )
+
+        return True  # Do not filter anything, just transform data
