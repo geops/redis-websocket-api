@@ -7,10 +7,6 @@ from setuptools import setup
 here = os.path.abspath(os.path.dirname(__file__))
 with open(os.path.join(here, "README.md")) as f:
     README = f.read()
-with open(os.path.join(here, "requirements.txt")) as f:
-    requires = [
-        line.strip() for line in f if len(line) > 1 and not line.startswith("#")
-    ]
 
 setup(
     name="redis-websocket-api",
@@ -24,9 +20,9 @@ setup(
     license="MIT",
     keywords="tralis websocket websockets aioredis redis",
     packages=["redis_websocket_api"],
+    install_requires=["aioredis", "websockets"],
     extras_require={"testing": ["pytest"], "geo": ["pyproj"]},
     python_requires=">=3.5",
-    install_requires=requires,
     classifiers=[
         "Programming Language :: Python :: 3",
         "License :: OSI Approved :: MIT License",
