@@ -1,14 +1,19 @@
 from collections import namedtuple
-from functools import partial
+from functools import partial, lru_cache
 from logging import getLogger
 
-from pyproj import Proj as Projection, transform as transform_projection
+from pyproj import Proj, transform as transform_projection
 
 __all__ = ["GeoCommandsMixin"]
 
 logger = getLogger(__name__)
 
 BoundingBox = namedtuple("BoundingBox", ["left", "bottom", "right", "top"])
+
+
+@lru_cache(maxsize=128)
+def get_projection(value):
+    return Proj(init=value)
 
 
 class GeoCommandsMixin:
@@ -18,7 +23,8 @@ class GeoCommandsMixin:
     may accept any number of keyword arguments.
     """
 
-    projection_in = Projection(init="epsg:4326")
+    default_projection = "epsg:4326"
+    projection_in = get_projection(default_projection)
     projection_out = None
     bbox = None
 
@@ -53,9 +59,14 @@ class GeoCommandsMixin:
             "Feature type {} is not supported yet".format(feature_type)
         )
 
-    def _transform_coords(self, feature_type, coords):
+    def _transform_coords(self, feature_type, coords, projection_out=None):
+        if projection_out == get_projection(self.default_projection):
+            return coords
+
         transform_func = partial(
-            transform_projection, self.projection_in, self.projection_out
+            transform_projection,
+            self.projection_in,
+            projection_out or self.projection_out,
         )
 
         if feature_type == "LineString":
@@ -92,12 +103,12 @@ class GeoCommandsMixin:
                 self.websocket.remote_address,
             )
         else:
-            projection, = args
-            if projection == "epsg:4326" and "projection" in self.filters:
+            (projection,) = args
+            if projection == self.default_projection and "projection" in self.filters:
                 del self.filters["projection"]
             else:
                 try:
-                    self.projection_out = Projection(init=projection)
+                    self.projection_out = get_projection(projection)
                     self.filters["projection"] = self._projection_filter
                     logger.debug(
                         "Set 'PROJECTION' to '%s' for %s.",
@@ -110,6 +121,46 @@ class GeoCommandsMixin:
                         projection,
                         self.websocket.remote_address,
                     )
+
+    async def _handle_pget_command(
+        self, channel_name, ref=None, client_ref=None, projection=None
+    ):
+        """Like GET but with srid option for specifieing projection"""
+        if not (
+            channel_name in self.channel_names
+            or self._channel_in_patterns(channel_name)
+        ):
+            return
+
+        projection_out = get_projection(projection or self.default_projection)
+
+        if ref is not None:
+            source = "{} {}".format(channel_name, ref)
+            values = [await self.redis.hget(channel_name, ref, encoding="utf-8")]
+        else:
+            source = channel_name
+            values = await self.redis.hvals(channel_name, encoding="utf-8") or ()
+
+        send_count = 0
+        for value in values:
+            passed, data = self._apply_filters(value, exclude="projection")
+            passed = self._projection_filter(data, projection_out=projection_out)
+            if passed:
+                send_count += 1
+                await self._send(source, data, client_reference=client_ref)
+
+        if send_count == 0:
+            send_count = 1
+            await self._send(channel_name, None, client_reference=client_ref)
+
+        logger.debug(
+            "Sent %s messages in response to 'PGET %s %s %s %s'.",
+            send_count,
+            channel_name,
+            ref,
+            client_ref,
+            projection,
+        )
 
     def _bbox_filter(self, data, bbox=None):
         """Include Feature or FeatureCollection if any of it's coordinates is within bbox.
@@ -147,23 +198,35 @@ class GeoCommandsMixin:
 
         return True  # Only filter objects we could handle above
 
-    def _projection_filter(self, data):
-        """Transform coordinates in Feature or FeatureCollection to self.projection_out."""
-        if self._is_collection(data):
-            return all([self._projection_filter(item) for item in data["features"]])
+    def _projection_filter(self, data, projection_out=None):
+        """Transform coordinates in Feature or FeatureCollection to projection_out.
 
-        if self.projection_out:
+        Uses self.projection_out set by PROJECTION by default.
+        """
+        if self._is_collection(data):
+            return all(
+                [
+                    self._projection_filter(item, projection_out=projection_out)
+                    for item in data["features"]
+                ]
+            )
+
+        if projection_out or self.projection_out:
             feature_type = self._feature_type(data)
             if feature_type is not None:
                 try:
                     if feature_type.startswith("Multi"):
                         data["geometry"]["coordinates"] = [
-                            self._transform_coords(feature_type[5:], item)
+                            self._transform_coords(
+                                feature_type[5:], item, projection_out
+                            )
                             for item in data["geometry"]["coordinates"]
                         ]
                     else:
                         data["geometry"]["coordinates"] = self._transform_coords(
-                            feature_type, data["geometry"]["coordinates"]
+                            feature_type,
+                            data["geometry"]["coordinates"],
+                            projection_out,
                         )
                 except NotImplementedError:
                     logger.warning(
