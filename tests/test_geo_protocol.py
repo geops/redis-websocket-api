@@ -6,6 +6,7 @@ from pytest import approx as approx_
 
 from redis_websocket_api import WebsocketHandler
 from redis_websocket_api.geo_protocol import GeoCommandsMixin, BoundingBox
+from redis_websocket_api.exceptions import RemoteMessageHandlerError
 
 GEOJSON = """\
 {{
@@ -46,7 +47,7 @@ def get_feature_collection(*features):
 @pytest.fixture
 def geo_handler(websocket, redis):
     class GeoHandler(WebsocketHandler, GeoCommandsMixin):
-        allowed_commands = "BBOX", "PROJECTION", "GET"
+        allowed_commands = "BBOX", "PROJECTION", "GET", "PGET"
 
     return GeoHandler(
         redis=redis, websocket=websocket, channel_names=[], channel_patterns=[]
@@ -328,3 +329,68 @@ def test_feature_collection_projection_filter(loop, geo_handler):
             ],
         },
     )
+
+
+def test_pget_command(loop, geo_handler, redis, websocket):
+    with pytest.raises(RemoteMessageHandlerError):
+        loop.run_until_complete(geo_handler._handle_remote_message("PGET"))
+
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
+    redis.await_hvals.assert_not_called()
+
+    geo_handler.channel_names = ["egg"]
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
+    redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
+    assert '"source": "egg"' in websocket.await_send.call_args_list[0][0][0]
+
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg ref"))
+    redis.await_hget.assert_called_once_with("egg", "ref", encoding="utf-8")
+
+    redis.await_hget.reset_mock()
+    websocket.await_send.reset_mock()
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg ref cref"))
+    redis.await_hget.assert_called_once_with("egg", "ref", encoding="utf-8")
+    assert '"client_reference": "cref"' in websocket.await_send.call_args_list[0][0][0]
+
+    redis.await_hget.reset_mock()
+    websocket.await_send.reset_mock()
+    loop.run_until_complete(
+        geo_handler._handle_remote_message("PGET egg ref client_ref=cref")
+    )
+    assert '"client_reference": "cref"' in websocket.await_send.call_args_list[0][0][0]
+
+    redis.await_hvals.reset_mock()
+    redis.await_hvals.return_value = ['{"hello": "world"}']
+    websocket.await_send.reset_mock()
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
+    redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
+    assert (
+        '"content": {"hello": "world"}' in websocket.await_send.call_args_list[0][0][0]
+    )
+
+    source_data = [
+        get_feature_collection(
+            get_geojson("LineString", "[0.1, 3.5], [2.1, 3.4]"),
+            get_geojson("Point", "0.1, 3.5"),
+            get_geojson("Polygon", "[[0.1, 3.5], [2.1, 3.4]]"),
+            get_geojson("Unknown", "[0.1, 3.5], [2.1, 3.4]"),
+        )
+    ]
+
+    redis.await_hvals.reset_mock()
+    redis.await_hvals.return_value = source_data
+    websocket.await_send.reset_mock()
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
+    redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
+    result = loads(websocket.await_send.call_args_list[0][0][0])
+    assert result["content"] == loads(source_data[0])
+
+    redis.await_hvals.reset_mock()
+    redis.await_hvals.return_value = source_data
+    websocket.await_send.reset_mock()
+    loop.run_until_complete(
+        geo_handler._handle_remote_message("PGET egg projection=epsg:3857")
+    )
+    redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
+    result = loads(websocket.await_send.call_args_list[0][0][0])
+    assert result["content"] != loads(source_data[0])
