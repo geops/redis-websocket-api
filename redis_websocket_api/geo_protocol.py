@@ -204,7 +204,12 @@ class GeoCommandsMixin:
         Uses self.projection_out set by PROJECTION by default.
         """
         if self._is_collection(data):
-            return all([self._projection_filter(item) for item in data["features"]])
+            return all(
+                [
+                    self._projection_filter(item, projection_out=projection_out)
+                    for item in data["features"]
+                ]
+            )
 
         if projection_out or self.projection_out:
             feature_type = self._feature_type(data)

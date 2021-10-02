@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -6,10 +7,10 @@ from websockets import exceptions
 
 def test_websocket_handler_creation(loop, server, websocket):
     server.handlers = MagicMock()
-    websocket.await_recv.side_effect = exceptions.ConnectionClosed(1001, 'foo')
+    websocket.await_recv.side_effect = exceptions.ConnectionClosed(1001, "foo")
 
     with pytest.warns(RuntimeWarning):
-        loop.run_until_complete(server.websocket_handler(websocket, '/foo'))
+        asyncio.run(server.websocket_handler(websocket, "/foo"))
 
     assert websocket.await_recv.call_count == 1
     assert websocket.await_send.call_count == 1
@@ -17,4 +18,4 @@ def test_websocket_handler_creation(loop, server, websocket):
     assert '"status": "open"' in sent_str
 
     assert server.handlers.__setitem__.call_count == 1
-    assert server.handlers.__delitem__.called_once_with(('EGG', 2000))
+    assert server.handlers.__delitem__.called_once_with(("EGG", 2000))

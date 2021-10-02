@@ -21,7 +21,7 @@ setup(
     keywords="tralis websocket websockets aioredis redis",
     packages=["redis_websocket_api"],
     install_requires=["aioredis<2", "websockets"],
-    extras_require={"testing": ["pytest"], "geo": ["pyproj"]},
+    extras_require={"testing": ["pytest"], "geo": ["pyproj<2"]},
     python_requires=">=3.7",
     classifiers=[
         "Programming Language :: Python :: 3",
