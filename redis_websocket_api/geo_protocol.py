@@ -104,8 +104,13 @@ class GeoCommandsMixin:
             )
         else:
             (projection,) = args
-            if projection == self.default_projection and "projection" in self.filters:
-                del self.filters["projection"]
+            if projection == self.default_projection:
+                if "projection" in self.filters:
+                    del self.filters["projection"]
+                    logger.debug(
+                        "Removed 'PROJECTION' filter for %s",
+                        self.websocket.remote_address,
+                    )
             else:
                 try:
                     self.projection_out = get_projection(projection)
