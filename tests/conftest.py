@@ -47,13 +47,9 @@ def redis():
 
 @pytest.fixture
 def handler(websocket, redis):
-    return WebsocketHandler(
-        redis=redis, websocket=websocket, channel_names=[], channel_patterns=[]
-    )
+    return WebsocketHandler(redis=redis, websocket=websocket)
 
 
 @pytest.fixture
 def server(redis):
-    return WebsocketServer(
-        redis, AsyncMagicMock(), read_timeout=1, keep_alive_timeout=1
-    )
+    return WebsocketServer(redis, read_timeout=1, keep_alive_timeout=1)

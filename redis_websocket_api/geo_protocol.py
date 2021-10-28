@@ -131,10 +131,7 @@ class GeoCommandsMixin:
         self, channel_name, ref=None, client_ref=None, projection=None
     ):
         """Like GET but with srid option for specifieing projection"""
-        if not (
-            channel_name in self.channel_names
-            or self._channel_in_patterns(channel_name)
-        ):
+        if not self.channel_is_allowed(channel_name):
             return
 
         projection_out = get_projection(projection or self.default_projection)
