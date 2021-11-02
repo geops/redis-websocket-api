@@ -49,9 +49,9 @@ def geo_handler(websocket, redis):
     class GeoHandler(WebsocketHandler, GeoCommandsMixin):
         allowed_commands = "BBOX", "PROJECTION", "GET", "PGET"
 
-    return GeoHandler(
-        redis=redis, websocket=websocket, channel_names=[], channel_patterns=[]
-    )
+    handler = GeoHandler(redis=redis, websocket=websocket)
+    handler.channel_names = ["egg"]
+    return handler
 
 
 def test_bbox_command(loop, geo_handler):
@@ -335,10 +335,9 @@ def test_pget_command(loop, geo_handler, redis, websocket):
     with pytest.raises(RemoteMessageHandlerError):
         loop.run_until_complete(geo_handler._handle_remote_message("PGET"))
 
-    loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
+    loop.run_until_complete(geo_handler._handle_remote_message("PGET foo"))
     redis.await_hvals.assert_not_called()
 
-    geo_handler.channel_names = ["egg"]
     loop.run_until_complete(geo_handler._handle_remote_message("PGET egg"))
     redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
     assert '"source": "egg"' in websocket.await_send.call_args_list[0][0][0]

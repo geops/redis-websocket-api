@@ -18,17 +18,21 @@ Server-Side Usage
 
 Start the `WebsocketServer` like this:
 
-    from aioredis import create_redis_pool
-    from redis_websocket_api import WebsocketServer
+    from aioredis import from_url
+    from redis_websocket_api import WebsocketServer, WebsocketHandler
 
-    REDIS_ADDRESS = ('localhost', 6379)
+
+    class PublishEverythingHandler(WebsocketHandler):
+
+        def channel_is_allowed(self, channel_name):
+            return True
 
 
     WebsocketServer(
-        redis=loop.run_until_complete(create_redis_pool(REDIS_ADDRESS)),
-        subscriber=loop.run_until_complete(create_redis_pool(REDIS_ADDRESS)),
+        redis=from_url("redis:///", encoding="utf-8", decode_responses=True),
         read_timeout=30,
         keep_alive_timeout=120,
+        handler_class=PublishEverythingHandler,
     ).listen(
         host='localhost',
         port=8000,

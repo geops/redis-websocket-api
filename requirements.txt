@@ -4,11 +4,13 @@
 #
 #    pip-compile
 #
-aioredis==1.3.1
+aioredis==2.0
     # via redis-websocket-api (setup.py)
 async-timeout==3.0.1
     # via aioredis
 hiredis==2.0.0
+    # via redis-websocket-api (setup.py)
+typing-extensions==3.10.0.2
     # via aioredis
 websockets==10.0
     # via redis-websocket-api (setup.py)
