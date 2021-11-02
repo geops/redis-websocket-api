@@ -162,7 +162,7 @@ class WebsocketHandler(WebsocketHandlerBase, CommandsMixin):
     channel_names = set()
 
     def channel_is_allowed(self, channel_name):
-        """Return wheather the given channel should be accessable
+        """Return whether the given channel should be accessible
 
         Overwrite this method to fit your usecase, default is that you'll
         need to set the allowed channels in a subclass.
