@@ -10,7 +10,7 @@ with open(os.path.join(here, "README.md")) as f:
 
 setup(
     name="redis-websocket-api",
-    version="0.4.2",
+    version="0.4.3",
     description="Redis-over-WebSocket API on top of websockets and aioredis",
     long_description=README,
     long_description_content_type="text/markdown",

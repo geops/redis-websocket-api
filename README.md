@@ -16,28 +16,38 @@ With geo extension (filtering messages by extent, projection transformation):
 Server-Side Usage
 -----------------
 
-Start the `WebsocketServer` like this:
+For a quick test you can run
 
-    from aioredis import from_url
-    from redis_websocket_api import WebsocketServer, WebsocketHandler
+```bash
+python -m redis_websocket_api
+```
+
+to start a simple redis websocket api on `ws://localhost:8765`.
+
+This does [roughly](./redis_websocket_api/__main__.py) the equivalant of:
+
+```python
+from aioredis import from_url
+from redis_websocket_api import WebsocketServer, WebsocketHandler
 
 
-    class PublishEverythingHandler(WebsocketHandler):
+class PublishEverythingHandler(WebsocketHandler):
 
-        def channel_is_allowed(self, channel_name):
-            return True
+    def channel_is_allowed(self, channel_name):
+        return True
 
 
-    WebsocketServer(
-        redis=from_url("redis:///", encoding="utf-8", decode_responses=True),
-        read_timeout=30,
-        keep_alive_timeout=120,
-        handler_class=PublishEverythingHandler,
-    ).listen(
-        host='localhost',
-        port=8000,
-        channel_names=('public_channel_1', 'public_channel_2'),
-    )
+WebsocketServer(
+    redis=from_url("redis:///", encoding="utf-8", decode_responses=True),
+    read_timeout=30,
+    keep_alive_timeout=120,
+    handler_class=PublishEverythingHandler,
+).listen(
+    host='localhost',
+    port=8000,
+    channel_patterns=["[a-z]*"],
+)
+```
 
 Have a look at `examples/demo.py` for an example with the `GeoCommandsMixin`
 added.

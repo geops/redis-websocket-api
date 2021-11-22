@@ -80,7 +80,10 @@ class WebsocketServer:
             await self.redis_subscribe(p, channel_names, channel_patterns)
             while True:
                 message = await p.get_message(
-                    ignore_subscribe_messages=True, timeout=60,
+                    # Coution: without a timeout `get_message` yields
+                    # immidiatly without waiting for a message.
+                    ignore_subscribe_messages=True,
+                    timeout=60,
                 )
                 if message is not None:
                     channel_name = message["channel"] or message["pattern"]
@@ -101,14 +104,3 @@ class WebsocketServer:
         loop.run_until_complete(start_server)
         logger.info("Listening on %s:%s...", host, port)
         loop.run_until_complete(self.redis_reader(channel_names, channel_patterns))
-
-
-if __name__ == "__main__":
-    import aioredis
-
-    class PublishEverythingHandler(WebsocketHandler):
-        def channel_is_allowed(self, channel_name):
-            return True
-
-    redis = aioredis.from_url("redis:///", encoding="utf-8", decode_responses=True)
-    WebsocketServer(redis).listen("localhost", "8765", channel_patterns=["[a-z]*"])
