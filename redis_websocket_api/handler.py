@@ -114,6 +114,8 @@ class WebsocketHandlerBase:
             await getattr(self, "_handle_{}_command".format(command.lower()))(
                 *args, **kwargs
             )
+        except asyncio.CancelledError:
+            raise
         except Exception as e:
             raise RemoteMessageHandlerError(
                 "Handling message '{}' failed: {}".format(message, e)
