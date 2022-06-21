@@ -1,8 +1,8 @@
 from collections import namedtuple
-from functools import partial, lru_cache
+from functools import lru_cache
 from logging import getLogger
 
-from pyproj import Proj, transform as transform_projection
+import pyproj
 
 __all__ = ["GeoCommandsMixin"]
 
@@ -13,7 +13,7 @@ BoundingBox = namedtuple("BoundingBox", ["left", "bottom", "right", "top"])
 
 @lru_cache(maxsize=128)
 def get_projection(value):
-    return Proj(init=value)
+    return pyproj.CRS(value)
 
 
 class GeoCommandsMixin:
@@ -23,6 +23,7 @@ class GeoCommandsMixin:
     may accept any number of keyword arguments.
     """
 
+    always_xy = True
     default_projection = "epsg:4326"
     projection_in = get_projection(default_projection)
     projection_out = None
@@ -59,16 +60,14 @@ class GeoCommandsMixin:
             "Feature type {} is not supported yet".format(feature_type)
         )
 
-    def _transform_coords(self, feature_type, coords, projection_out=None):
-        if projection_out == get_projection(self.default_projection):
-            return coords
-
-        transform_func = partial(
-            transform_projection,
+    def _get_transform_func(self, projection_out):
+        return pyproj.Transformer.from_crs(
             self.projection_in,
             projection_out or self.projection_out,
-        )
+            always_xy=self.always_xy,
+        ).transform
 
+    def _transform_coords(self, feature_type, coords, transform_func):
         if feature_type == "LineString":
             return [transform_func(*point) for point in coords]
         elif feature_type == "Polygon":
@@ -114,15 +113,16 @@ class GeoCommandsMixin:
             else:
                 try:
                     self.projection_out = get_projection(projection)
-                    self.filters["projection"] = self._projection_filter
-                    logger.debug(
-                        "Set 'PROJECTION' to '%s' for %s.",
+                except pyproj.exceptions.CRSError:
+                    logger.info(
+                        "Could not set 'PROJECTION' to '%s' for %s.",
                         projection,
                         self.websocket.remote_address,
                     )
-                except RuntimeError:
-                    logger.info(
-                        "Could not set 'PROJECTION' to '%s' for %s.",
+                else:
+                    self.filters["projection"] = self._projection_filter
+                    logger.debug(
+                        "Set 'PROJECTION' to '%s' for %s.",
                         projection,
                         self.websocket.remote_address,
                     )
@@ -200,27 +200,32 @@ class GeoCommandsMixin:
 
         return True  # Only filter objects we could handle above
 
-    def _projection_filter(self, data, projection_out=None):
+    def _projection_filter(self, data, projection_out=None, transform_func=None):
         """Transform coordinates in Feature or FeatureCollection to projection_out.
 
         Uses self.projection_out set by PROJECTION by default.
         """
-        if self._is_collection(data):
-            return all(
-                [
-                    self._projection_filter(item, projection_out=projection_out)
-                    for item in data["features"]
-                ]
-            )
+        if not (projection_out or self.projection_out):
+            return True  # Do not filter anything, do not transform anything
 
-        if projection_out or self.projection_out:
+        # create once at start of recursion, then pass down
+        transform_func = transform_func or self._get_transform_func(projection_out)
+
+        if self._is_collection(data):
+            for item in data["features"]:
+                self._projection_filter(
+                    item,
+                    projection_out=projection_out,
+                    transform_func=transform_func,
+                )
+        else:
             feature_type = self._feature_type(data)
             if feature_type is not None:
                 try:
                     if feature_type.startswith("Multi"):
                         data["geometry"]["coordinates"] = [
                             self._transform_coords(
-                                feature_type[5:], item, projection_out
+                                feature_type[5:], item, transform_func
                             )
                             for item in data["geometry"]["coordinates"]
                         ]
@@ -228,11 +233,16 @@ class GeoCommandsMixin:
                         data["geometry"]["coordinates"] = self._transform_coords(
                             feature_type,
                             data["geometry"]["coordinates"],
-                            projection_out,
+                            transform_func,
                         )
                 except NotImplementedError:
                     logger.warning(
                         "Not projecting feature of type '%s': %s", feature_type, data
                     )
-
         return True  # Do not filter anything, just transform data
+
+
+class StrictAxisOrderGeoCommandsMixin(GeoCommandsMixin):
+    """Like GeoCommandsMixin but with axis order strictly following the CRS definition."""
+
+    always_xy = False

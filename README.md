@@ -80,6 +80,11 @@ See `examples/demo.py` for how to use an extended `WebsocketHandler` subclass.
 Geo commands are currently limited to `LineString`, `Polygon`, and `Point`
 geometries.
 
+Note that the projection input and output coordinates will use the traditional GIS order,
+that is longitude, latitude for geographic CRS and easting, northing for most projected CRS.
+If you want the input and output axes order to strictly follow the definition of the CRS,
+use `StrictAxisOrderGeoCommandsMixin` instead of `GeoCommandsMixin`.
+
 #### Build your own protocol
 
 Using the commands listed above for communicating from client to server is
