@@ -82,7 +82,7 @@ geometries.
 
 Note that the projection input and output coordinates will use the traditional GIS order,
 that is longitude, latitude for geographic CRS and easting, northing for most projected CRS.
-If you want the input and output axes order to strictly follow the definition of the CRS,
+If you want the input and output axis order to strictly follow the definition of the CRS,
 use `StrictAxisOrderGeoCommandsMixin` instead of `GeoCommandsMixin`.
 
 #### Build your own protocol
