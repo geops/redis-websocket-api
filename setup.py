@@ -10,7 +10,7 @@ with open(os.path.join(here, "README.md")) as f:
 
 setup(
     name="redis-websocket-api",
-    version="0.4.3",
+    version="0.4.4",
     description="Redis-over-WebSocket API on top of websockets and aioredis",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -21,7 +21,7 @@ setup(
     keywords="tralis websocket websockets aioredis redis",
     packages=["redis_websocket_api"],
     install_requires=["aioredis", "websockets", "hiredis"],
-    extras_require={"testing": ["pytest"], "geo": ["pyproj<2"]},
+    extras_require={"testing": ["pytest"], "geo": ["pyproj>=2.2.0"]},
     python_requires=">=3.7",
     classifiers=[
         "Programming Language :: Python :: 3",

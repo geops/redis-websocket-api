@@ -5,7 +5,11 @@ import pytest
 from pytest import approx as approx_
 
 from redis_websocket_api import WebsocketHandler
-from redis_websocket_api.geo_protocol import GeoCommandsMixin, BoundingBox
+from redis_websocket_api.geo_protocol import (
+    GeoCommandsMixin,
+    BoundingBox,
+    StrictAxisOrderGeoCommandsMixin,
+)
 from redis_websocket_api.exceptions import RemoteMessageHandlerError
 
 GEOJSON = """\
@@ -44,14 +48,23 @@ def get_feature_collection(*features):
     return FEATURE_COLLECTION.format(features=features)
 
 
-@pytest.fixture
-def geo_handler(websocket, redis):
-    class GeoHandler(WebsocketHandler, GeoCommandsMixin):
+def get_geo_handler(websocket, redis, mixin):
+    class GeoHandler(WebsocketHandler, mixin):
         allowed_commands = "BBOX", "PROJECTION", "GET", "PGET"
 
     handler = GeoHandler(redis=redis, websocket=websocket)
     handler.channel_names = ["egg"]
     return handler
+
+
+@pytest.fixture
+def geo_handler(websocket, redis):
+    return get_geo_handler(websocket, redis, GeoCommandsMixin)
+
+
+@pytest.fixture
+def strict_geo_handler(websocket, redis):
+    return get_geo_handler(websocket, redis, StrictAxisOrderGeoCommandsMixin)
 
 
 def test_bbox_command(loop, geo_handler):
@@ -393,3 +406,28 @@ def test_pget_command(loop, geo_handler, redis, websocket):
     redis.await_hvals.assert_called_once_with("egg", encoding="utf-8")
     result = loads(websocket.await_send.call_args_list[0][0][0])
     assert result["content"] != loads(source_data[0])
+
+
+def test_axis_order(loop, geo_handler, strict_geo_handler):
+    for handler in geo_handler, strict_geo_handler:
+        loop.run_until_complete(handler._handle_remote_message("PROJECTION epsg:3857"))
+        if handler is geo_handler:
+            input_msg = get_geojson("LineString", "[0.1, 3.5], [2.1, 3.4]")
+        else:
+            # epsg:4326 has reversed axis order for strict mode
+            input_msg = get_geojson("LineString", "[3.5, 0.1], [3.4, 2.1]")
+        # epsg:3857 has same axis order in both modes
+        assert handler._apply_filters(input_msg) == (
+            True,
+            {
+                "geometry": {
+                    "coordinates": [
+                        approx((11131.949079326665, 389860.7582541955)),
+                        approx((233770.93066587413, 378708.59661392024)),
+                    ],
+                    "type": "LineString",
+                },
+                "properties": {},
+                "type": "Feature",
+            },
+        )
