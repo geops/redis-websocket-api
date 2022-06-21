@@ -16,6 +16,15 @@ def get_projection(value):
     return pyproj.CRS(value)
 
 
+@lru_cache(maxsize=128)
+def get_transform_func(projection_in, projection_out, always_xy):
+    return pyproj.Transformer.from_crs(
+        projection_in,
+        projection_out,
+        always_xy=always_xy,
+    ).transform
+
+
 class GeoCommandsMixin:
     """Provide functions for excluding or transforming GeoJSON before sending.
 
@@ -59,13 +68,6 @@ class GeoCommandsMixin:
         raise NotImplementedError(
             "Feature type {} is not supported yet".format(feature_type)
         )
-
-    def _get_transform_func(self, projection_out):
-        return pyproj.Transformer.from_crs(
-            self.projection_in,
-            projection_out or self.projection_out,
-            always_xy=self.always_xy,
-        ).transform
 
     def _transform_coords(self, feature_type, coords, transform_func):
         if feature_type == "LineString":
@@ -209,7 +211,9 @@ class GeoCommandsMixin:
             return True  # Do not filter anything, do not transform anything
 
         # create once at start of recursion, then pass down
-        transform_func = transform_func or self._get_transform_func(projection_out)
+        transform_func = transform_func or get_transform_func(
+            self.projection_in, projection_out or self.projection_out, self.always_xy
+        )
 
         if self._is_collection(data):
             for item in data["features"]:
