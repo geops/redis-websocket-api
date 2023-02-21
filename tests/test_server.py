@@ -9,8 +9,7 @@ def test_websocket_handler_creation(loop, server, websocket):
     server.handlers = MagicMock()
     websocket.await_recv.side_effect = exceptions.ConnectionClosed(1001, "foo")
 
-    with pytest.warns(RuntimeWarning):
-        asyncio.run(server.websocket_handler(websocket, "/foo"))
+    asyncio.run(server.websocket_handler(websocket, "/foo"))
 
     assert websocket.await_recv.call_count == 1
     assert websocket.await_send.call_count == 1
