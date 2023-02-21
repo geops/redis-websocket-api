@@ -132,7 +132,7 @@ class WebsocketHandlerBase:
     async def create(cls, redis, websocket, read_timeout=None):
         """Create a handler instance setting up tasks and queues."""
         self = cls(redis, websocket, read_timeout=read_timeout)
-        self.consumer_task = asyncio.ensure_future(self._websocket_reader())
+        self.consumer_task = asyncio.create_task(self._websocket_reader())
         return self
 
     async def listen(self):
@@ -141,7 +141,7 @@ class WebsocketHandlerBase:
         This coroutine blocks for up to self.read_timeout seconds.
         """
         await self._send("websocket", {"status": "open"})
-        while not self.consumer_task.done():
+        while not self.consumer_task.done() and not self.websocket.closed:
             try:
                 await self._queue_reader()
             except asyncio.TimeoutError:
@@ -150,9 +150,10 @@ class WebsocketHandlerBase:
 
     async def close(self):
         """Close all connections and cancel all tasks."""
-        asyncio.wait_for(  # attempt to say goodbye to the client
-            self.websocket.close(), self.read_timeout
-        )
+        if self.websocket.open:
+            await asyncio.wait_for(  # attempt to say goodbye to the client
+                self.websocket.close(), self.read_timeout
+            )
         self.consumer_task.cancel()
 
 

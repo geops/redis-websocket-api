@@ -49,13 +49,25 @@ class WebsocketServer:
 
         logger.info("Client %s connected", websocket.remote_address)
         handler = await self.handler_class.create(
-            self.redis, websocket, read_timeout=self.read_timeout,
+            self.redis,
+            websocket,
+            read_timeout=self.read_timeout,
         )
         self.handlers[websocket.remote_address] = handler
+        handler_listen_task = asyncio.create_task(
+            asyncio.wait_for(handler.listen(), self.keep_alive_timeout)
+        )
         try:
-            await asyncio.wait_for(handler.listen(), self.keep_alive_timeout)
+            await asyncio.wait(
+                {
+                    handler_listen_task,
+                    websocket.handler_task,
+                },
+                return_when="FIRST_COMPLETED",
+            )
         finally:
             del self.handlers[websocket.remote_address]
+            handler_listen_task.cancel()
             await handler.close()
             logger.info("Client %s removed", websocket.remote_address)
 

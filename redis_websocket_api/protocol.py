@@ -16,7 +16,7 @@ class CommandsMixin:
 
     The commend name is translated to a method name like this:
 
-        "_handle_{name}_command".format(name=a_tralis_protocol_command.lower())
+        "_handle_{name}_command".format(name=a_custom_protocol_command.lower())
     """
 
     async def _handle_del_command(self, channel_name):
