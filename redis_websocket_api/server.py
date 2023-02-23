@@ -26,13 +26,16 @@ class WebsocketServer:
         """Set default values for new WebsocketHandlers.
 
         :param redis: aioredis.client.Redis instance
-        :param read_timeout: Timeout, after which the websocket connection is
-           checked and kept if still open (does not cancel an open connection)
         :param keep_alive_timeout: Time after which the server cancels the
            handler task (independently of it's internal state)
         """
 
-        self.read_timeout = read_timeout
+        if read_timeout:
+            logger.warning(
+                "read_timeout is not used anymore because cleanup is trigered "
+                "immidiatly on connection loss"
+            )
+
         self.keep_alive_timeout = keep_alive_timeout
         self.handlers = {}
         self.redis = redis
@@ -48,11 +51,7 @@ class WebsocketServer:
         """Return handler for a single websocket connection."""
 
         logger.info("Client %s connected", websocket.remote_address)
-        handler = await self.handler_class.create(
-            self.redis,
-            websocket,
-            read_timeout=self.read_timeout,
-        )
+        handler = await self.handler_class.create(self.redis, websocket)
         self.handlers[websocket.remote_address] = handler
         handler_listen_task = asyncio.create_task(
             asyncio.wait_for(handler.listen(), self.keep_alive_timeout)
@@ -61,7 +60,7 @@ class WebsocketServer:
             await asyncio.wait(
                 {
                     handler_listen_task,
-                    websocket.handler_task,
+                    asyncio.create_task(websocket.wait_closed()),
                 },
                 return_when="FIRST_COMPLETED",
             )
@@ -69,6 +68,10 @@ class WebsocketServer:
             del self.handlers[websocket.remote_address]
             handler_listen_task.cancel()
             await handler.close()
+            try:
+                await handler_listen_task
+            except asyncio.CancelledError:
+                pass
             logger.info("Client %s removed", websocket.remote_address)
 
     async def redis_subscribe(self, p, channel_names=(), channel_patterns=()):
@@ -106,13 +109,29 @@ class WebsocketServer:
                                 Message(source=channel_name, content=message["data"])
                             )
 
-        psub.close()
-
-    def listen(self, host, port, channel_names=(), channel_patterns=(), loop=None):
+    async def serve(
+        self,
+        host,
+        port,
+        channel_names=(),
+        channel_patterns=(),
+        **websockets_serve_kwargs
+    ):
         """Listen for websocket connections and manage redis subscriptions."""
 
-        loop = loop or asyncio.get_event_loop()
-        start_server = serve(self.websocket_handler, host, port)
-        loop.run_until_complete(start_server)
-        logger.info("Listening on %s:%s...", host, port)
-        loop.run_until_complete(self.redis_reader(channel_names, channel_patterns))
+        async with serve(
+            ws_handler=self.websocket_handler,
+            host=host,
+            port=port,
+            **websockets_serve_kwargs,
+        ):
+            logger.info("Listening on %s:%s...", host, port)
+            await self.redis_reader(channel_names, channel_patterns)
+
+    def listen(self, host, port, channel_names=(), channel_patterns=(), loop=None):
+        logger.warning("`listen` is deprecated, use `serve` instead")
+        serve_coro = self.serve(host, port, channel_names, channel_patterns)
+        if loop:
+            loop.run_until_complete(serve_coro)
+        else:
+            asyncio.run(serve_coro)

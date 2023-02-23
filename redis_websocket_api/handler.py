@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import asyncio
 from collections import OrderedDict
 from logging import getLogger
@@ -15,18 +17,26 @@ logger = getLogger(__name__)
 class WebsocketHandlerBase:
     """Define protocol for communication between web client and server."""
 
-    read_timeout = NotImplemented
     allowed_commands = NotImplemented
 
+    consumer_task: asyncio.Task  # for backwrds-compatibility, also in:
+    tasks: dict[str, asyncio.Task]  # Self-made TaskGroup for old Python
+
     def __init__(self, redis, websocket, read_timeout=None):
+        if read_timeout:
+            logger.warning(
+                "read_timeout is not used anymore because cleanup is trigered "
+                "immidiatly on connection loss"
+            )
+
         self.websocket = websocket
         self.redis = redis
-        self.read_timeout = read_timeout or self.read_timeout
 
         self.queue = asyncio.Queue()
 
         self.filters = OrderedDict()
         self.subscriptions = set()
+        self.tasks = {}
 
     async def _websocket_reader(self):
         try:
@@ -62,7 +72,7 @@ class WebsocketHandlerBase:
         return passes, data
 
     async def _queue_reader(self):
-        source, message = await asyncio.wait_for(self.queue.get(), self.read_timeout)
+        source, message = await self.queue.get()
         if source == "websocket":
             await self._handle_remote_message(message)
         else:
@@ -131,36 +141,41 @@ class WebsocketHandlerBase:
     @classmethod
     async def create(cls, redis, websocket, read_timeout=None):
         """Create a handler instance setting up tasks and queues."""
-        self = cls(redis, websocket, read_timeout=read_timeout)
+
+        if read_timeout:
+            logger.warning(
+                "read_timeout is not used anymore because cleanup is trigered "
+                "immidiatly on connection loss"
+            )
+
+        self = cls(redis, websocket)
         self.consumer_task = asyncio.create_task(self._websocket_reader())
+        self.tasks["consumer_task"] = self.consumer_task
         return self
 
     async def listen(self):
-        """Read and handle messages from internal message queue.
-
-        This coroutine blocks for up to self.read_timeout seconds.
-        """
+        """Read and handle messages from internal message queue"""
         await self._send("websocket", {"status": "open"})
-        while not self.consumer_task.done() and not self.websocket.closed:
-            try:
-                await self._queue_reader()
-            except asyncio.TimeoutError:
-                if not self.websocket.open:
-                    raise
+        while self.websocket.open:
+            queue_reader_task = asyncio.create_task(self._queue_reader())
+            self.tasks["queue_reader"] = queue_reader_task
+            await queue_reader_task
 
     async def close(self):
         """Close all connections and cancel all tasks."""
         if self.websocket.open:
-            await asyncio.wait_for(  # attempt to say goodbye to the client
-                self.websocket.close(), self.read_timeout
-            )
-        self.consumer_task.cancel()
+            await self.websocket.close()
+        for task in self.tasks.values():
+            task.cancel()
+            try:
+                await task
+            except asyncio.CancelledError:
+                pass
 
 
 class WebsocketHandler(WebsocketHandlerBase, CommandsMixin):
     """Provides a Redis proxy to predefined channels"""
 
-    read_timeout = 30
     allowed_commands = "SUB", "DEL", "PING", "GET"
     channel_names = set()
 

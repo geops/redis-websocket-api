@@ -27,6 +27,7 @@ to start a simple redis websocket api on `ws://localhost:8765`.
 This does [roughly](./redis_websocket_api/__main__.py) the equivalant of:
 
 ```python
+import asyncio
 from aioredis import from_url
 from redis_websocket_api import WebsocketServer, WebsocketHandler
 
@@ -37,20 +38,20 @@ class PublishEverythingHandler(WebsocketHandler):
         return True
 
 
-WebsocketServer(
+ws_server = WebsocketServer(
     redis=from_url("redis:///", encoding="utf-8", decode_responses=True),
-    read_timeout=30,
     keep_alive_timeout=120,
     handler_class=PublishEverythingHandler,
-).listen(
-    host='localhost',
-    port=8000,
-    channel_patterns=["[a-z]*"],
+)
+
+asyncio.run(
+    ws_server.serve(
+        host='localhost',
+        port=8000,
+        channel_patterns=["[a-z]*"],
+    )
 )
 ```
-
-Have a look at `examples/demo.py` for an example with the `GeoCommandsMixin`
-added.
 
 
 Client-Side Usage
