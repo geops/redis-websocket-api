@@ -1,3 +1,4 @@
+import asyncio
 from unittest.mock import MagicMock
 
 import pytest
@@ -37,6 +38,7 @@ class AsyncMagicMock(MagicMock):
 def websocket():
     websocket = AsyncMagicMock()
     websocket.remote_address = ("EGG", 2000)
+    websocket.handler_task = asyncio.sleep(0)
     return websocket
 
 

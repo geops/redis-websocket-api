@@ -5,6 +5,7 @@
 Intended for debugging and development only.
 """
 
+import asyncio
 from os import getenv
 from logging import basicConfig, INFO
 import aioredis
@@ -22,10 +23,13 @@ def main():
     redis = aioredis.from_url(
         getenv("REDIS_DSN", "redis:///"), encoding="utf-8", decode_responses=True
     )
-    server = WebsocketServer(redis=redis, handler_class=PublishEverythingHandler,)
+    server = WebsocketServer(
+        redis=redis,
+        handler_class=PublishEverythingHandler,
+    )
     host = getenv("HOST", "localhost")
     port = int(getenv("PORT", 8765))
-    server.listen(host, port, channel_patterns=["[a-z]*"])
+    asyncio.run(server.serve(host, port, channel_patterns=["[a-z]*"]))
 
 
 if __name__ == "__main__":
