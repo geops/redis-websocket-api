@@ -32,8 +32,8 @@ class WebsocketServer:
 
         if read_timeout:
             logger.warning(
-                "read_timeout is not used anymore because cleanup is trigered "
-                "immidiatly on connection loss"
+                "read_timeout is not used anymore because cleanup is triggered "
+                "immediately on connection loss"
             )
 
         self.keep_alive_timeout = keep_alive_timeout

@@ -25,8 +25,8 @@ class WebsocketHandlerBase:
     def __init__(self, redis, websocket, read_timeout=None):
         if read_timeout:
             logger.warning(
-                "read_timeout is not used anymore because cleanup is trigered "
-                "immidiatly on connection loss"
+                "read_timeout is not used anymore because cleanup is triggered "
+                "immediately on connection loss"
             )
 
         self.websocket = websocket
@@ -144,8 +144,8 @@ class WebsocketHandlerBase:
 
         if read_timeout:
             logger.warning(
-                "read_timeout is not used anymore because cleanup is trigered "
-                "immidiatly on connection loss"
+                "read_timeout is not used anymore because cleanup is triggered "
+                "immediately on connection loss"
             )
 
         self = cls(redis, websocket)
