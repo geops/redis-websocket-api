@@ -1,7 +1,8 @@
 import asyncio
 from logging import getLogger
+import websockets
 
-from websockets import serve
+from websockets.legacy.server import WebSocketServerProtocol, serve
 
 from redis_websocket_api.handler import WebsocketHandler, WebsocketHandlerBase
 from redis_websocket_api.protocol import Message
@@ -47,7 +48,7 @@ class WebsocketServer:
                     "handler_class has to be a subclass of WebsocketHandlerBase"
                 )
 
-    async def websocket_handler(self, websocket, path):
+    async def websocket_handler(self, websocket: WebSocketServerProtocol, path) -> None:
         """Return handler for a single websocket connection."""
 
         logger.info("Client %s connected", websocket.remote_address)
@@ -56,22 +57,33 @@ class WebsocketServer:
         handler_listen_task = asyncio.create_task(
             asyncio.wait_for(handler.listen(), self.keep_alive_timeout)
         )
+        wait_closed_task = asyncio.create_task(websocket.wait_closed())
+        await asyncio.wait(
+            {
+                handler_listen_task,
+                wait_closed_task,
+            },
+            return_when="FIRST_COMPLETED",
+        )
         try:
-            await asyncio.wait(
-                {
-                    handler_listen_task,
-                    asyncio.create_task(websocket.wait_closed()),
-                },
-                return_when="FIRST_COMPLETED",
-            )
-        finally:
             del self.handlers[websocket.remote_address]
             handler_listen_task.cancel()
             await handler.close()
             try:
                 await handler_listen_task
+            except (asyncio.CancelledError, asyncio.TimeoutError) as e:
+                logger.debug(
+                    "Closing connection for %s: %s", websocket.remote_address, e
+                )
+            wait_closed_task.cancel()
+            try:
+                await wait_closed_task
             except asyncio.CancelledError:
-                pass
+                logger.warning(
+                    "Websocket connection for %s seems to be open after cleanup",
+                    websocket.remote_address,
+                )
+        finally:
             logger.info("Client %s removed", websocket.remote_address)
 
     async def redis_subscribe(self, p, channel_names=(), channel_patterns=()):
